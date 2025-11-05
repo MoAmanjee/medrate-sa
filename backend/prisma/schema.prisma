@@ -1,0 +1,774 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums for PostgreSQL
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+  HOSPITAL
+}
+
+enum VerificationStatus {
+  NOT_VERIFIED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  PREMIUM
+  BASIC
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  SUSPENDED
+}
+
+enum PaymentMethod {
+  STRIPE
+  PAYSTACK
+  PAYFAST
+  YOCO
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum HospitalType {
+  PUBLIC
+  PRIVATE
+  CLINIC
+  PHARMACY
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum TelemedicineStatus {
+  SCHEDULED
+  STARTED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum AnalyticsPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum MarketplaceCategory {
+  HEALTH_TEST
+  SUPPLEMENTS
+  MEDICAL_DEVICES
+  WELLNESS
+}
+
+enum ShippingStatus {
+  PENDING
+  SHIPPED
+  DELIVERED
+  RETURNED
+}
+
+model User {
+  id                String             @id @default(cuid())
+  email             String             @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  role              UserRole          @default(PATIENT)
+  verificationStatus VerificationStatus @default(NOT_VERIFIED)
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  doctor            Doctor?
+  hospital          Hospital?
+  admin             Admin?
+  reviews           Review[]
+  bookingsAsPatient Booking[]          @relation("PatientBookings")
+  verification      Verification[]
+  docbotChats       DocBotChat[]
+  companyEmployee   CompanyEmployee?
+  marketplaceOrders MarketplaceOrder[]
+  marketplaceReviews MarketplaceReview[]
+
+  @@map("users")
+}
+
+model Doctor {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Professional details
+  hpcsaNumber       String   @unique
+  specialization    String
+  experience        Int      // years
+  practiceAddress   String
+  practiceCity      String
+  practiceProvince  String
+  practicePostalCode String?
+  
+  // Extended Profile Information
+  title             String?            // Dr., Prof., etc.
+  bio               String?            // About section
+  profilePicture    String?            // Profile photo URL
+  education         String?            // JSON string of education details
+  certifications    String?           // JSON string of certifications
+  awards            String?            // JSON string of awards
+  memberships       String?            // JSON string of professional memberships
+  
+  // Social Links
+  socialLinks       String?            // JSON string of social media links
+  
+  // Services and Products
+  services          String?            // JSON string of services offered
+  products          String?            // JSON string of products/publications
+  
+  // Contact Details
+  contactEmail      String?
+  contactPhone      String?
+  website           String?
+  
+  // Documents
+  idDocument        String?  // Cloudinary URL
+  qualificationDoc  String?  // Cloudinary URL
+  practiceLicense   String?  // Cloudinary URL
+  
+  // Ratings and reviews
+  averageRating     Float    @default(0)
+  totalReviews      Int      @default(0)
+  
+  // Availability
+  consultationFee   Float
+  isAvailable       Boolean  @default(true)
+  availability      String?            // JSON string of available slots
+  
+  // Subscription & Revenue Features
+  subscriptionLevel SubscriptionPlan   @default(FREE)
+  subscriptionExpiry DateTime?
+  telemedicineEnabled Boolean @default(false)
+  telemedicineFee    Float?   // Separate fee for online consultations
+  
+  // Profile Enhancement Features
+  profileVideo      String?  // Video URL for premium profiles
+  gallery           String?  // JSON string of image URLs
+  analyticsEnabled  Boolean  @default(false) // Access to analytics dashboard
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  reviews           Review[]
+  bookings          Booking[]
+  hospitalDoctors   HospitalDoctor[]
+  subscriptions     DoctorSubscription[]
+  analytics         DoctorAnalytics[]
+
+  @@map("doctors")
+}
+
+model Hospital {
+  id                String   @id @default(cuid())
+  userId            String?  @unique  // Optional for auto-populated hospitals
+  user              User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Basic Information
+  name              String
+  registrationNumber String?  // Optional for auto-populated hospitals
+  address           String
+  city              String
+  province          String
+  postalCode        String?
+  phone             String?
+  email             String?
+  website           String?
+  
+  // Geographic Information
+  latitude          Float?    // Latitude coordinate
+  longitude         Float?   // Longitude coordinate
+  
+  // Hospital Classification
+  type              HospitalType   @default(PRIVATE)
+  classification    String?  // Specialized facilities description
+  isPublic          Boolean  @default(false)
+  
+  // Extended Profile Information
+  logo              String?            // Hospital logo URL
+  bio               String?            // About section
+  departments       String?            // JSON string of departments
+  services          String?            // JSON string of services offered
+  products          String?            // JSON string of products/publications
+  
+  // Social Links
+  socialLinks       String?            // JSON string of social media links
+  
+  // Verification Status
+  verified          Boolean  @default(false)
+  autoPopulated     Boolean  @default(false) // Flag for auto-populated hospitals
+  
+  // Documents (only for manually registered hospitals)
+  registrationDoc   String?  // Cloudinary URL
+  ownershipDoc      String?  // Cloudinary URL
+  
+  // Ratings and reviews
+  averageRating     Float    @default(0)
+  totalReviews      Int      @default(0)
+  
+  // Data source tracking
+  dataSource        String?  // Source of hospital data (OpenStreetMap, etc.)
+  osmId             String?  // OpenStreetMap ID
+  osmType           String?  // OpenStreetMap element type (node, way, relation)
+  lastUpdated       DateTime @default(now())
+  
+  // Subscription & Revenue Features
+  subscriptionLevel SubscriptionPlan   @default(FREE)
+  subscriptionExpiry DateTime?
+  analyticsEnabled  Boolean  @default(false) // Access to analytics dashboard
+  featuredDoctors   String?  // JSON string of featured doctor IDs
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  reviews           Review[]
+  doctors           HospitalDoctor[]
+  subscriptions     HospitalSubscription[]
+  analytics         HospitalAnalytics[]
+
+  @@map("hospitals")
+}
+
+model HospitalDoctor {
+  id         String   @id @default(cuid())
+  hospitalId String
+  doctorId   String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  doctor     Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  isActive   Boolean  @default(true)
+  joinedAt   DateTime @default(now())
+
+  @@unique([hospitalId, doctorId])
+  @@map("hospital_doctors")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Review target (either doctor or hospital)
+  doctorId   String?
+  doctor     Doctor?  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  hospitalId String?
+  hospital   Hospital? @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  
+  rating     Int      // 1-5 stars
+  comment    String?
+  isVerified Boolean  @default(false) // Review from verified user
+  isReported Boolean  @default(false)
+  reportReason String?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("reviews")
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  doctorId        String
+  patientId       String
+  doctor          Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient         User          @relation("PatientBookings", fields: [patientId], references: [id], onDelete: Cascade)
+  
+  // Appointment details
+  appointmentDate DateTime
+  appointmentTime String        // "09:00", "10:30", etc.
+  duration        Int           @default(30) // minutes
+  
+  // Telemedicine support
+  isTelemedicine  Boolean       @default(false)
+  telemedicineFee Float?        // Separate fee for online consultations
+  
+  // Status and payment
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  consultationFee Float
+  platformFee    Float         // Commission percentage
+  totalAmount     Float
+  
+  // Payment details
+  paymentIntentId String?       // Stripe payment intent ID
+  paymentMethod   String?
+  
+  // Notes
+  patientNotes    String?
+  doctorNotes     String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  commission      Commission?
+  telemedicineSession TelemedicineSession?
+
+  @@map("bookings")
+}
+
+model Verification {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role        UserRole
+  status      VerificationStatus @default(PENDING)
+  
+  // Documents submitted
+  documents   String?             // JSON string of document URLs
+  
+  // Admin review
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  rejectionReason String?
+  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("verifications")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  level     Int      @default(1) // Admin level (1-3)
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Commission {
+  id            String   @id @default(cuid())
+  bookingId     String   @unique
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  amount        Float
+  percentage    Float
+  status        CommissionStatus @default(PENDING)
+  
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("commissions")
+}
+
+model DocBotChat {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  sessionId     String   // For anonymous users
+  userMessage   String
+  botResponse   String
+  doctorType    String?  // Recommended doctor type
+  searchQuery   String?  // Generated search query
+  
+  createdAt     DateTime @default(now())
+
+  @@map("docbot_chats")
+}
+
+// ===== REVENUE FEATURES MODELS =====
+
+model DoctorSubscription {
+  id                String   @id @default(cuid())
+  doctorId          String
+  doctor            Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  plan              SubscriptionPlan
+  status            SubscriptionStatus @default(ACTIVE)
+  startDate         DateTime @default(now())
+  endDate           DateTime
+  amount            Float
+  currency          String   @default("ZAR")
+  
+  // Payment details
+  paymentMethod     PaymentMethod?
+  paymentId         String?  // External payment ID
+  billingCycle      BillingCycle @default(MONTHLY)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("doctor_subscriptions")
+}
+
+model HospitalSubscription {
+  id                String   @id @default(cuid())
+  hospitalId        String
+  hospital          Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  
+  plan              SubscriptionPlan
+  status            SubscriptionStatus @default(ACTIVE)
+  startDate         DateTime @default(now())
+  endDate           DateTime
+  amount            Float
+  currency          String   @default("ZAR")
+  
+  // Payment details
+  paymentMethod     PaymentMethod?
+  paymentId         String?  // External payment ID
+  billingCycle      BillingCycle @default(MONTHLY)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("hospital_subscriptions")
+}
+
+model CompanyAccount {
+  id                String   @id @default(cuid())
+  companyName       String
+  contactEmail      String
+  contactPhone      String?
+  industry          String?
+  employeeCount     Int?
+  
+  // Subscription details
+  plan              SubscriptionPlan   @default(BASIC)
+  status            SubscriptionStatus @default(ACTIVE)
+  startDate         DateTime @default(now())
+  endDate           DateTime
+  amount            Float
+  currency          String   @default("ZAR")
+  
+  // Payment details
+  paymentMethod     PaymentMethod?
+  paymentId         String?  // External payment ID
+  billingCycle      BillingCycle @default(MONTHLY)
+  
+  // Features
+  maxEmployees      Int      @default(100)
+  analyticsEnabled  Boolean  @default(false)
+  prioritySupport   Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  employees         CompanyEmployee[]
+  analytics         CompanyAnalytics[]
+
+  @@map("company_accounts")
+}
+
+model CompanyEmployee {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           CompanyAccount @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  userId            String?  @unique // Optional link to existing user
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  employeeEmail     String
+  firstName         String
+  lastName          String
+  department        String?
+  position          String?
+  isActive          Boolean  @default(true)
+  
+  // Usage tracking
+  bookingsCount     Int      @default(0)
+  lastBookingDate   DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("company_employees")
+}
+
+model MarketplaceProduct {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  category          MarketplaceCategory
+  subcategory       String?
+  
+  // Pricing
+  price             Float
+  currency          String   @default("ZAR")
+  discountPrice     Float?
+  isOnSale          Boolean  @default(false)
+  
+  // Vendor information
+  vendorName        String
+  vendorEmail       String
+  vendorPhone       String?
+  vendorWebsite     String?
+  
+  // Product details
+  sku               String?  @unique
+  stock             Int      @default(0)
+  minStock          Int      @default(5)
+  weight            Float?   // kg
+  dimensions        String?  // JSON string
+  
+  // Media
+  images            String?  // JSON string of image URLs
+  videoUrl          String?
+  
+  // Affiliate and commission
+  affiliateLink     String?
+  commissionRate    Float?   // Percentage commission
+  isAffiliate       Boolean  @default(false)
+  
+  // Status
+  isActive          Boolean  @default(true)
+  isFeatured        Boolean  @default(false)
+  tags              String?  // JSON string of tags
+  
+  // SEO
+  metaTitle         String?
+  metaDescription   String?
+  slug              String?  @unique
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  orders            MarketplaceOrder[]
+  reviews           MarketplaceReview[]
+
+  @@map("marketplace_products")
+}
+
+model MarketplaceOrder {
+  id                String   @id @default(cuid())
+  productId         String
+  product           MarketplaceProduct @relation(fields: [productId], references: [id])
+  
+  userId            String?  // Optional for guest orders
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Order details
+  quantity          Int
+  unitPrice         Float
+  totalAmount       Float
+  currency          String   @default("ZAR")
+  
+  // Customer information
+  customerEmail     String
+  customerName      String
+  customerPhone     String?
+  shippingAddress  String   // JSON string
+  
+  // Payment
+  paymentMethod     PaymentMethod
+  paymentId         String?  // External payment ID
+  paymentStatus     PaymentStatus @default(PENDING)
+  
+  // Shipping
+  shippingMethod    String?
+  trackingNumber    String?
+  shippingStatus    ShippingStatus @default(PENDING)
+  
+  // Commission
+  commissionAmount  Float?
+  commissionPaid    Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("marketplace_orders")
+}
+
+model MarketplaceReview {
+  id                String   @id @default(cuid())
+  productId         String
+  product           MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  rating            Int      // 1-5 stars
+  title             String?
+  comment           String?
+  isVerified        Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("marketplace_reviews")
+}
+
+model DoctorAnalytics {
+  id                String   @id @default(cuid())
+  doctorId          String
+  doctor            Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  // Metrics
+  period            AnalyticsPeriod
+  periodStart       DateTime
+  periodEnd         DateTime
+  
+  profileViews      Int      @default(0)
+  bookingRequests   Int      @default(0)
+  completedBookings Int      @default(0)
+  cancelledBookings Int      @default(0)
+  newReviews        Int      @default(0)
+  averageRating     Float    @default(0)
+  
+  // Revenue
+  consultationRevenue Float   @default(0)
+  telemedicineRevenue Float  @default(0)
+  totalRevenue       Float   @default(0)
+  
+  // Demographics (anonymized)
+  ageGroups         String?  // JSON string of age group distribution
+  genderDistribution String? // JSON string of gender distribution
+  topSpecialties    String?  // JSON string of requested specialties
+  
+  createdAt         DateTime @default(now())
+
+  @@map("doctor_analytics")
+}
+
+model HospitalAnalytics {
+  id                String   @id @default(cuid())
+  hospitalId        String
+  hospital          Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  
+  // Metrics
+  period            AnalyticsPeriod
+  periodStart       DateTime
+  periodEnd         DateTime
+  
+  profileViews      Int      @default(0)
+  searchAppearances Int      @default(0)
+  bookingRequests   Int      @default(0)
+  completedBookings Int      @default(0)
+  newReviews        Int      @default(0)
+  averageRating     Float    @default(0)
+  
+  // Revenue
+  totalRevenue      Float    @default(0)
+  commissionEarned  Float    @default(0)
+  
+  // Demographics (anonymized)
+  topDepartments    String?  // JSON string of popular departments
+  ageGroups         String?  // JSON string of age group distribution
+  genderDistribution String? // JSON string of gender distribution
+  
+  createdAt         DateTime @default(now())
+
+  @@map("hospital_analytics")
+}
+
+model CompanyAnalytics {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           CompanyAccount @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Metrics
+  period            AnalyticsPeriod
+  periodStart       DateTime
+  periodEnd         DateTime
+  
+  activeEmployees   Int      @default(0)
+  totalBookings     Int      @default(0)
+  totalSpend        Float    @default(0)
+  averageBookingValue Float  @default(0)
+  
+  // Usage patterns
+  topSpecialties    String?  // JSON string of most booked specialties
+  topHospitals      String?  // JSON string of most used hospitals
+  bookingTrends     String?  // JSON string of booking patterns
+  
+  createdAt         DateTime @default(now())
+
+  @@map("company_analytics")
+}
+
+model TelemedicineSession {
+  id                String   @id @default(cuid())
+  bookingId         String   @unique
+  booking           Booking  @relation(fields: [bookingId], references: [id])
+  
+  // Session details
+  sessionId         String   // External video service session ID
+  provider          String   // ZOOM, AGORA, DAILY_CO
+  roomUrl           String?
+  
+  // Timing
+  scheduledStart    DateTime
+  actualStart       DateTime?
+  actualEnd         DateTime?
+  duration          Int?     // minutes
+  
+  // Status
+  status            TelemedicineStatus @default(SCHEDULED)
+  
+  // Technical details
+  patientJoined     Boolean  @default(false)
+  doctorJoined      Boolean  @default(false)
+  recordingUrl      String?
+  
+  // Quality metrics
+  connectionQuality String?  // GOOD, FAIR, POOR
+  technicalIssues   String?   // JSON string of issues encountered
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("telemedicine_sessions")
+}

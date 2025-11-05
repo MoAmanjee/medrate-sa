@@ -1,0 +1,79 @@
+// This is your Prisma schema file for the AI Pothole Detector
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      String   @default("USER") // USER, ADMIN
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  detections PotholeDetection[]
+
+  @@map("users")
+}
+
+model PotholeDetection {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Image information
+  imagePath   String   // Path to uploaded image
+  imageUrl    String?  // Public URL for the image
+  
+  // Detection results
+  confidence  Float    // Confidence score (0-1)
+  isPothole   Boolean  // True if pothole detected
+  severity    String?  // LOW, MEDIUM, HIGH
+  
+  // Location data (if available)
+  latitude    Float?
+  longitude   Float?
+  address     String?
+  
+  // Detection metadata
+  modelVersion String  @default("v1.0")
+  processingTime Float // Time taken to process in seconds
+  
+  // Status
+  status      String   @default("PROCESSED") // PROCESSING, PROCESSED, FAILED
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pothole_detections")
+}
+
+model DetectionStats {
+  id          String   @id @default(cuid())
+  
+  // Statistics
+  totalDetections Int      @default(0)
+  potholesDetected Int     @default(0)
+  falsePositives   Int      @default(0)
+  averageConfidence Float  @default(0)
+  
+  // Time period
+  period      String   // DAILY, WEEKLY, MONTHLY
+  periodStart DateTime
+  periodEnd   DateTime
+  
+  createdAt   DateTime @default(now())
+
+  @@map("detection_stats")
+}

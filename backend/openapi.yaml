@@ -1,0 +1,272 @@
+openapi: 3.0.0
+info:
+  title: Rate The Doctor & Hospital API
+  version: 1.0.0
+  description: |
+    Complete API for Rate The Doctor & Hospital platform.
+    Features: Doctor search, Hospital search, Claims, Promotions, Bookings, Reviews, Payments.
+  contact:
+    name: Mohammed Amanjeee
+    email: support@ratethedoctor.co.za
+
+servers:
+  - url: https://api.ratethedoctor.co.za/v1
+    description: Production server
+  - url: http://localhost:8000/api
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Doctors
+    description: Doctor profiles and search
+  - name: Hospitals
+    description: Hospital profiles, claims, and promotions
+  - name: Appointments
+    description: Booking and appointment management
+  - name: Reviews
+    description: Reviews and ratings
+  - name: Payments
+    description: Payment processing and webhooks
+  - name: Admin
+    description: Admin verification and management
+
+paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, phone, full_name, password, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                full_name:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                role:
+                  type: string
+                  enum: [patient, doctor, hospital_admin]
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Validation error
+
+  /hospitals/search:
+    get:
+      tags: [Hospitals]
+      summary: Search hospitals
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search query
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [Public Hospital, Private Hospital, Clinic, GP Practice, Pharmacy]
+        - name: rating
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+        - name: verified_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Hospital search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      hospitals:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Hospital'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+
+  /hospitals/{id}:
+    get:
+      tags: [Hospitals]
+      summary: Get hospital profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hospital profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Hospital'
+
+  /hospitals/{id}/claim/initiate:
+    post:
+      tags: [Hospitals]
+      summary: Initiate hospital claim
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Claim initiated
+        '400':
+          description: Invalid request
+
+  /hospitals/{id}/promotion/purchase:
+    post:
+      tags: [Hospitals]
+      summary: Purchase hospital promotion
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: promotion_tier
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [standard, premium]
+        - name: payment_provider
+          in: query
+          schema:
+            type: string
+            enum: [payfast, yoco, paystack]
+            default: payfast
+      responses:
+        '200':
+          description: Payment session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      payment_url:
+                        type: string
+                      payment_id:
+                        type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Hospital:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        city:
+          type: string
+        province:
+          type: string
+        rating:
+          type: number
+        totalReviews:
+          type: integer
+        verified:
+          type: boolean
+        claimed:
+          type: boolean
+        isFeatured:
+          type: boolean
+        promotionTier:
+          type: string
+        departments:
+          type: array
+          items:
+            type: string
+        specialties:
+          type: array
+          items:
+            type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
