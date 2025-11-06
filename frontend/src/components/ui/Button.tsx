@@ -15,8 +15,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const variants = {
       primary: 'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0',
       secondary: 'bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0',
-      outline: 'border-2 border-secondary-500 text-secondary-500 bg-transparent hover:bg-secondary-50 hover:border-secondary-600 hover:text-secondary-600 focus:ring-secondary-500',
-      ghost: 'text-primary-500 bg-transparent hover:bg-primary-50 hover:text-primary-600 focus:ring-primary-500',
+      outline: 'border-2 border-gray-700 text-gray-900 bg-white hover:bg-gray-50 hover:border-gray-900 hover:text-gray-900 focus:ring-gray-500 font-semibold',
+      ghost: 'text-gray-900 bg-transparent hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-500 font-medium',
       danger: 'bg-alert-500 text-white hover:bg-alert-600 focus:ring-alert-500 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0',
     };
 

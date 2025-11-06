@@ -460,9 +460,9 @@ export default function HospitalsMapPage() {
 
           {filteredHospitals.length === 0 && !isLoading && (
             <div className="text-center py-12">
-              <BuildingOfficeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hospitals found</h3>
-              <p className="text-gray-500">Try adjusting your search criteria</p>
+              <BuildingOfficeIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No hospitals found</h3>
+              <p className="text-gray-700">Try adjusting your search criteria</p>
             </div>
           )}
         </div>

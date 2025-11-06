@@ -7,7 +7,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.auth_service import AuthService, get_auth_service
-from app.schemas.auth import UserRegister, UserLogin, TokenResponse
+from app.schemas.auth import UserRegister, UserLogin, TokenResponse, IDVerificationRequest
 from app.middleware.rate_limit import auth_rate_limit
 
 router = APIRouter()
@@ -39,22 +39,55 @@ async def register(
     return result["data"]
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 @auth_rate_limit
 async def login(
     credentials: UserLogin,
     db: Session = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """User login"""
+    """User login - requires ID verification"""
     result = auth_service.login_user(
         email=credentials.email,
         password=credentials.password
     )
     
     if not result.get("success"):
+        # If verification is required, return special response
+        if result.get("requires_verification"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": result.get("error"),
+                    "requires_verification": True,
+                    "user_id": result.get("user_id")
+                }
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=result.get("error")
+        )
+    
+    return result["data"]
+
+
+@router.post("/verify-id")
+@auth_rate_limit
+async def verify_id(
+    verification_data: IDVerificationRequest,
+    db: Session = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """Verify user ID during login process"""
+    result = auth_service.verify_login_id(
+        user_id=verification_data.user_id,
+        id_number=verification_data.id_number,
+        id_document_url=verification_data.id_document_url
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=result.get("error")
         )
     

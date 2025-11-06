@@ -11,8 +11,7 @@ except ImportError:
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from app.models.enhanced_models import User, UserRole
+from app.models.enhanced_models import User, UserRole, VerificationStatus
 
 # Optional Firebase - only import if available
 try:
@@ -23,8 +22,43 @@ except ImportError:
     FIREBASE_AVAILABLE = False
 
 from passlib.context import CryptContext
+import bcrypt
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use bcrypt directly to avoid passlib version issues
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt"""
+    # Truncate password if too long (bcrypt limit is 72 bytes)
+    if len(password) > 72:
+        password = password[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against hash"""
+    # Truncate password if too long
+    if len(plain_password) > 72:
+        plain_password = plain_password[:72]
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+# Use direct bcrypt instead of passlib to avoid version compatibility issues
+# Keep passlib as fallback only if bcrypt is not available
+try:
+    import bcrypt
+    # Test bcrypt works
+    test_hash = bcrypt.hashpw(b"test", bcrypt.gensalt())
+    USE_PASSLIB = False  # Use direct bcrypt
+    pwd_context = None
+except Exception as e:
+    print(f"Warning: bcrypt not available, trying passlib: {e}")
+    try:
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        USE_PASSLIB = True
+    except Exception:
+        USE_PASSLIB = False
+        pwd_context = None
 
 
 class AuthService:
@@ -69,21 +103,37 @@ class AuthService:
             }
         
         # Hash password
-        password_hash = pwd_context.hash(password)
+        if USE_PASSLIB:
+            password_hash = pwd_context.hash(password)
+        else:
+            password_hash = hash_password(password)
         
         # Create user
-        user = User(
-            email=email,
-            phone=phone,
-            full_name=full_name,
-            password_hash=password_hash,
-            role=UserRole(role),
-            verified=False
-        )
-        
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
+        try:
+            user = User(
+                email=email,
+                phone=phone,
+                full_name=full_name,
+                password_hash=password_hash,
+                role=UserRole(role),
+                verified=False
+            )
+            
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+        except Exception as e:
+            self.db.rollback()
+            import traceback
+            import sys
+            error_trace = traceback.format_exc()
+            print(f"[ERROR] Error creating user: {e}", flush=True)
+            print(error_trace, flush=True)
+            sys.stdout.flush()
+            return {
+                "success": False,
+                "error": f"Failed to create user: {str(e)}"
+            }
         
         # Generate tokens
         tokens = self._generate_tokens(user)
@@ -103,7 +153,7 @@ class AuthService:
         }
     
     def login_user(self, email: str, password: str) -> Dict:
-        """User login with email/password"""
+        """User login with email/password - requires ID verification"""
         user = self.db.query(User).filter(User.email == email).first()
         
         if not user:
@@ -119,10 +169,24 @@ class AuthService:
             }
         
         # Verify password
-        if not pwd_context.verify(password, user.password_hash):
+        if USE_PASSLIB:
+            password_valid = pwd_context.verify(password, user.password_hash)
+        else:
+            password_valid = verify_password(password, user.password_hash)
+        
+        if not password_valid:
             return {
                 "success": False,
                 "error": "Invalid email or password"
+            }
+        
+        # Check if user has verified ID (required for login)
+        if not user.verified or not user.id_number:
+            return {
+                "success": False,
+                "requires_verification": True,
+                "user_id": str(user.id),
+                "error": "ID verification required. Please verify your identity with an ID or passport."
             }
         
         # Update last login
@@ -145,6 +209,104 @@ class AuthService:
                 **tokens
             }
         }
+    
+    def verify_login_id(
+        self,
+        user_id: str,
+        id_number: str,
+        id_document_url: Optional[str] = None
+    ) -> Dict:
+        """Verify user ID during login process"""
+        from app.adapters.user_verification_adapter import UserVerificationAdapter
+        from app.models.enhanced_models import UserVerification
+        import uuid
+        
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except ValueError:
+            return {
+                "success": False,
+                "error": "Invalid user ID format"
+            }
+        
+        user = self.db.query(User).filter(User.id == user_uuid).first()
+        
+        if not user:
+            return {
+                "success": False,
+                "error": "User not found"
+            }
+        
+        # Initialize verification adapter (cached for performance)
+        verification_adapter = UserVerificationAdapter()
+        
+        # Perform verification (optimized - minimal data passed)
+        verification_result = verification_adapter.verify_user(
+            user_id=str(user.id),
+            id_number=id_number,
+            full_name=user.full_name,
+            phone=user.phone or "",
+            email=user.email or "",
+            id_document_url=id_document_url
+        )
+        
+        # Update user verification status
+        if verification_result.get("verified"):
+            user.verified = True
+            user.verification_status = VerificationStatus.VERIFIED
+            user.id_number = id_number
+            if id_document_url:
+                user.id_document_url = id_document_url
+            user.verification_provider = verification_result.get("provider", "manual")
+            user.verification_data = verification_result
+            
+            # Create or update UserVerification record (optimized - single query)
+            user_verification = self.db.query(UserVerification).filter(
+                UserVerification.user_id == user_uuid
+            ).first()
+            
+            if not user_verification:
+                user_verification = UserVerification(
+                    user_id=user.id,
+                    provider=verification_result.get("provider"),
+                    provider_response=verification_result,
+                    status=VerificationStatus.VERIFIED,
+                    verified_at=datetime.utcnow(),
+                    id_document_url=id_document_url
+                )
+                self.db.add(user_verification)
+            else:
+                user_verification.status = VerificationStatus.VERIFIED
+                user_verification.verified_at = datetime.utcnow()
+                user_verification.provider_response = verification_result
+                if id_document_url:
+                    user_verification.id_document_url = id_document_url
+            
+            self.db.commit()
+            
+            # Generate tokens after successful verification
+            tokens = self._generate_tokens(user)
+            
+            return {
+                "success": True,
+                "data": {
+                    "user": {
+                        "id": str(user.id),
+                        "email": user.email,
+                        "full_name": user.full_name,
+                        "role": user.role.value,
+                        "verified": True
+                    },
+                    **tokens
+                },
+                "verification": verification_result
+            }
+        else:
+            return {
+                "success": False,
+                "error": verification_result.get("message", "ID verification failed"),
+                "verification": verification_result
+            }
     
     def verify_firebase_token(self, firebase_token: str) -> Dict:
         """Verify Firebase token and create/update user"""

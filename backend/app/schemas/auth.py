@@ -26,3 +26,8 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
 
+
+class IDVerificationRequest(BaseModel):
+    user_id: str
+    id_number: str = Field(..., min_length=13, max_length=20, description="South African ID number or passport number")
+    id_document_url: Optional[str] = None

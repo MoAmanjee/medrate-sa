@@ -2,10 +2,15 @@
 AI Routes
 """
 from fastapi import APIRouter, Depends, HTTPException
-from app.services.ai_service import AIService, get_ai_service
+from app.services.ai_service import AIService
 from app.middleware.rate_limit import ai_rate_limit
 
 router = APIRouter()
+
+
+def get_ai_service() -> AIService:
+    """Dependency to get AI service instance"""
+    return AIService()
 
 
 @router.post("/symptom-checker")

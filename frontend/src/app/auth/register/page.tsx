@@ -46,7 +46,15 @@ export default function RegisterPage() {
     }
 
     try {
-      await register(formData);
+      // Format data for backend API
+      const registerData = {
+        email: formData.email,
+        phone: formData.phone,
+        full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        password: formData.password,
+        role: formData.role.toLowerCase()
+      };
+      await register(registerData);
       router.push('/');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -67,7 +75,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold text-gray-900">MedRate SA</span>
           </div>
           <h2 className="text-3xl font-bold text-gray-900">Create your account</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-base font-medium text-gray-700">
             Join South Africa's premier healthcare platform
           </p>
         </div>
@@ -75,7 +83,7 @@ export default function RegisterPage() {
         {/* Registration Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
+            <CardTitle className="!text-gray-900 !font-bold !text-2xl" style={{ color: '#111827', fontWeight: 700, fontSize: '1.5rem' }}>Sign Up</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -126,7 +134,7 @@ export default function RegisterPage() {
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Account Type
                 </label>
                 <select
@@ -195,13 +203,13 @@ export default function RegisterPage() {
                   required
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
+                <label htmlFor="terms" className="ml-2 block text-sm font-medium text-gray-900">
                   I agree to the{' '}
-                  <a href="#" className="text-primary-600 hover:text-primary-500">
+                  <a href="#" className="font-semibold text-primary-600 hover:text-primary-700">
                     Terms of Service
                   </a>{' '}
                   and{' '}
-                  <a href="#" className="text-primary-600 hover:text-primary-500">
+                  <a href="#" className="font-semibold text-primary-600 hover:text-primary-700">
                     Privacy Policy
                   </a>
                 </label>
@@ -209,11 +217,11 @@ export default function RegisterPage() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full mt-4"
                 loading={isLoading}
-                disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.password}
+                disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword}
               >
-                Create Account
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
 
@@ -223,12 +231,12 @@ export default function RegisterPage() {
                   <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                  <span className="px-2 bg-white text-gray-900 font-bold text-base">Or continue with</span>
                 </div>
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-3">
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" type="button">
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -237,19 +245,19 @@ export default function RegisterPage() {
                   </svg>
                   Google
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" type="button">
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.96-3.24-1.44-1.41-.62-2.72-1.2-3.96-2.11C3.24 15.25 1.5 12.5 2.1 8.96c.44-2.68 2.19-4.64 4.56-5.8 2.47-1.19 5.09-1.19 7.56 0 1.69.81 2.97 2.15 3.78 3.85-2.19.11-4.19.9-5.65 2.3-1.3 1.25-2.05 2.9-2.05 4.65 0 1.75.75 3.4 2.05 4.65 1.46 1.4 3.46 2.19 5.65 2.3.18.95.5 1.85.95 2.67z"/>
                   </svg>
-                  Twitter
+                  Apple
                 </Button>
               </div>
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm font-medium text-gray-700">
                 Already have an account?{' '}
-                <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
+                <Link href="/auth/login" className="font-semibold text-primary-600 hover:text-primary-700">
                   Sign in here
                 </Link>
               </p>

@@ -233,9 +233,9 @@ export default function BookingsPage() {
                 ))
               ) : (
                 <div className="text-center py-12">
-                  <CalendarDaysIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming bookings</h3>
-                  <p className="text-gray-600 mb-4">You don't have any upcoming appointments.</p>
+                  <CalendarDaysIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No upcoming bookings</h3>
+                  <p className="text-gray-700 mb-4">You don't have any upcoming appointments.</p>
                   <Button>Book an Appointment</Button>
                 </div>
               )}
@@ -304,9 +304,9 @@ export default function BookingsPage() {
                 ))
               ) : (
                 <div className="text-center py-12">
-                  <CalendarDaysIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No past bookings</h3>
-                  <p className="text-gray-600">You haven't completed any appointments yet.</p>
+                  <CalendarDaysIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No past bookings</h3>
+                  <p className="text-gray-700">You haven't completed any appointments yet.</p>
                 </div>
               )}
             </div>

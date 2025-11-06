@@ -5,8 +5,8 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "echo 'Use: python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000'",
+    "start": "python -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
     "build": "echo 'Backend build complete'",
     "test": "jest",
     "db:generate": "prisma generate",

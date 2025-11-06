@@ -3,14 +3,31 @@ Enhanced Database Models
 SQLAlchemy models for Rate The Doctor
 """
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, JSON, Text, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from app.database import Base
 from datetime import datetime
 import uuid
 import enum
+import os
 
-Base = declarative_base()
+# Use PostgreSQL UUID if available, otherwise use String for SQLite
+USE_POSTGRES = os.getenv("DATABASE_URL", "").startswith("postgresql")
+if USE_POSTGRES:
+    try:
+        from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB
+        def UUID(as_uuid=True):
+            return PG_UUID(as_uuid=as_uuid)
+        JSONB = PG_JSONB
+    except ImportError:
+        # Fallback if PostgreSQL types not available
+        def UUID(as_uuid=True):
+            return String(36)
+        JSONB = JSON
+else:
+    # SQLite - use String for UUID and JSON instead of JSONB
+    def UUID(as_uuid=True):
+        return String(36)
+    JSONB = JSON
 
 
 class UserRole(enum.Enum):
@@ -44,7 +61,7 @@ class User(Base):
     """User model (patients)"""
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
     phone = Column(String(20), unique=True, nullable=False, index=True)
     full_name = Column(String(255), nullable=False)
@@ -83,7 +100,8 @@ class User(Base):
     last_login = Column(DateTime)
     
     # Relationships
-    doctor_profile = relationship("Doctor", back_populates="user", uselist=False)
+    # Note: foreign_keys must specify which FK to use since Doctor has both user_id and verified_by pointing to users.id
+    doctor_profile = relationship("Doctor", back_populates="user", uselist=False, primaryjoin="User.id == Doctor.user_id")
     appointments = relationship("Appointment", back_populates="patient", foreign_keys="Appointment.patient_id")
     reviews = relationship("Review", back_populates="patient")
     user_verification = relationship("UserVerification", back_populates="user", uselist=False)
@@ -93,8 +111,8 @@ class Doctor(Base):
     """Doctor model"""
     __tablename__ = "doctors"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id"), unique=True, nullable=False)
     
     # Basic Info
     display_name = Column(String(255), nullable=False, index=True)
@@ -112,7 +130,7 @@ class Doctor(Base):
     id_document_url = Column(String(500))  # S3 URL
     verification_status = Column(SQLEnum(VerificationStatus), default=VerificationStatus.PENDING, index=True)
     verified_at = Column(DateTime)
-    verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # Admin user ID
+    verified_by = Column(UUID(as_uuid=False), ForeignKey("users.id"))  # Admin user ID
     
     # Practice Details
     practice_name = Column(String(255))
@@ -155,7 +173,7 @@ class Doctor(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    user = relationship("User", back_populates="doctor_profile")
+    user = relationship("User", back_populates="doctor_profile", primaryjoin="Doctor.user_id == User.id")
     appointments = relationship("Appointment", back_populates="doctor")
     reviews = relationship("Review", back_populates="doctor")
     subscriptions = relationship("Subscription", back_populates="doctor")
@@ -167,8 +185,8 @@ class UserVerification(Base):
     """User verification records"""
     __tablename__ = "user_verifications"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id"), unique=True, nullable=False)
     
     # Verification Provider
     provider = Column(String(50))  # smile_identity, trulioo
@@ -194,11 +212,11 @@ class Appointment(Base):
     """Appointment model"""
     __tablename__ = "appointments"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     
     # Participants
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
+    patient_id = Column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False, index=True)
+    doctor_id = Column(UUID(as_uuid=False), ForeignKey("doctors.id"), nullable=False, index=True)
     
     # Appointment Details
     start_time = Column(DateTime, nullable=False, index=True)
@@ -241,12 +259,12 @@ class Review(Base):
     """Review model with multiple rating categories"""
     __tablename__ = "reviews"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     
     # Relationships
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
-    appointment_id = Column(UUID(as_uuid=True), ForeignKey("appointments.id"), unique=True, nullable=False, index=True)
+    patient_id = Column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False, index=True)
+    doctor_id = Column(UUID(as_uuid=False), ForeignKey("doctors.id"), nullable=False, index=True)
+    appointment_id = Column(UUID(as_uuid=False), ForeignKey("appointments.id"), unique=True, nullable=False, index=True)
     
     # Ratings (Multiple Categories)
     overall_rating = Column(Integer, nullable=False)  # 1-5
@@ -283,8 +301,8 @@ class Subscription(Base):
     """Doctor subscription model"""
     __tablename__ = "subscriptions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    doctor_id = Column(UUID(as_uuid=False), ForeignKey("doctors.id"), nullable=False, index=True)
     
     # Plan Details
     plan = Column(SQLEnum(SubscriptionPlan), nullable=False)
@@ -314,8 +332,8 @@ class DoctorAvailability(Base):
     """Doctor availability schedule"""
     __tablename__ = "doctor_availability"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    doctor_id = Column(UUID(as_uuid=False), ForeignKey("doctors.id"), nullable=False, index=True)
     
     # Day of week (0=Monday, 6=Sunday)
     day_of_week = Column(Integer, nullable=False)  # 0-6
@@ -343,8 +361,8 @@ class DoctorAnalytics(Base):
     """Doctor analytics data"""
     __tablename__ = "doctor_analytics"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    doctor_id = Column(UUID(as_uuid=True), ForeignKey("doctors.id"), nullable=False, index=True)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    doctor_id = Column(UUID(as_uuid=False), ForeignKey("doctors.id"), nullable=False, index=True)
     
     # Period
     period_start = Column(DateTime, nullable=False, index=True)

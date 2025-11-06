@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.database import get_db
-from app.services.hospital_service import HospitalService, get_hospital_service
+from app.services.hospital_service import HospitalService
 from app.middleware.auth import get_current_user, get_hospital_admin_user
 from app.models.enhanced_models import User
 
@@ -22,14 +22,14 @@ async def search_hospitals(
     verified_only: bool = Query(True, description="Show only verified hospitals"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    db: Session = Depends(get_db)
 ):
     """
     Search hospitals with filters
     - Only claimed & verified hospitals shown by default
     - Featured hospitals appear first
     """
+    hospital_service = HospitalService(db)
     result = hospital_service.search_hospitals(
         q=q,
         city=city,
@@ -46,10 +46,10 @@ async def search_hospitals(
 @router.get("/{hospital_id}")
 async def get_hospital(
     hospital_id: str,
-    db: Session = Depends(get_db),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    db: Session = Depends(get_db)
 ):
     """Get hospital profile details"""
+    hospital_service = HospitalService(db)
     result = hospital_service.get_hospital_profile(hospital_id)
     
     if not result.get("success"):
@@ -62,10 +62,10 @@ async def get_hospital(
 async def initiate_claim(
     hospital_id: str,
     email: str = Query(..., description="Email to receive claim link"),
-    db: Session = Depends(get_db),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    db: Session = Depends(get_db)
 ):
     """Initiate hospital claim process"""
+    hospital_service = HospitalService(db)
     result = hospital_service.initiate_claim(hospital_id, email)
     
     if not result.get("success"):
@@ -77,10 +77,10 @@ async def initiate_claim(
 @router.get("/claim/verify/{claim_token}")
 async def verify_claim_token(
     claim_token: str,
-    db: Session = Depends(get_db),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    db: Session = Depends(get_db)
 ):
     """Verify claim token from email link"""
+    hospital_service = HospitalService(db)
     result = hospital_service.verify_claim_token(claim_token)
     
     if not result.get("success"):
@@ -94,10 +94,10 @@ async def complete_claim(
     claim_id: str,
     documents: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    current_user: User = Depends(get_current_user)
 ):
     """Complete hospital claim with document upload"""
+    hospital_service = HospitalService(db)
     result = hospital_service.complete_claim(
         claim_id=claim_id,
         user_id=str(current_user.id),
@@ -116,10 +116,10 @@ async def purchase_promotion(
     promotion_tier: str = Query(..., description="standard or premium"),
     payment_provider: str = Query("payfast", description="payfast, yoco, or paystack"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_hospital_admin_user),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    current_user: User = Depends(get_hospital_admin_user)
 ):
     """Purchase hospital promotion"""
+    hospital_service = HospitalService(db)
     result = hospital_service.purchase_promotion(
         hospital_id=hospital_id,
         promotion_tier=promotion_tier,
@@ -135,8 +135,7 @@ async def purchase_promotion(
 @router.post("/promotion/webhook")
 async def promotion_webhook(
     data: dict,
-    db: Session = Depends(get_db),
-    hospital_service: HospitalService = Depends(get_hospital_service)
+    db: Session = Depends(get_db)
 ):
     """Handle payment webhook for promotion activation"""
     # Verify webhook signature (implementation depends on provider)
@@ -151,6 +150,7 @@ async def promotion_webhook(
     
     amount = data.get("amount", 0)
     
+    hospital_service = HospitalService(db)
     result = hospital_service.activate_promotion(
         hospital_id=hospital_id,
         promotion_tier=promotion_tier,

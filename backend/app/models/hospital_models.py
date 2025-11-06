@@ -38,7 +38,7 @@ class Hospital(Base):
     """Hospital model with claim and promotion support"""
     __tablename__ = "hospitals"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     
     # Basic Info
     name = Column(String(255), nullable=False, index=True)
@@ -46,11 +46,11 @@ class Hospital(Base):
     
     # Claim & Verification
     claimed = Column(Boolean, default=False, index=True)
-    claimed_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    claimed_by_user_id = Column(UUID(as_uuid=False), ForeignKey("users.id"))
     claimed_at = Column(DateTime)
     verification_status = Column(SQLEnum(VerificationStatus), default=VerificationStatus.PENDING, index=True)
     verified_at = Column(DateTime)
-    verified_by_admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    verified_by_admin_id = Column(UUID(as_uuid=False), ForeignKey("users.id"))
     
     # Location
     address = Column(Text)
@@ -103,9 +103,9 @@ class HospitalClaim(Base):
     """Hospital claim requests"""
     __tablename__ = "hospital_claims"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id"), nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    hospital_id = Column(UUID(as_uuid=False), ForeignKey("hospitals.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id"))
     
     claim_token = Column(String(255), unique=True, nullable=False, index=True)
     claim_email = Column(String(255), nullable=False)
@@ -116,7 +116,7 @@ class HospitalClaim(Base):
     
     submitted_at = Column(DateTime, default=datetime.utcnow)
     reviewed_at = Column(DateTime)
-    reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewed_by = Column(UUID(as_uuid=False), ForeignKey("users.id"))
     
     # Relationships
     hospital = relationship("Hospital", back_populates="claims")
@@ -126,8 +126,8 @@ class HospitalPromotion(Base):
     """Hospital promotion purchases"""
     __tablename__ = "hospital_promotions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id"), nullable=False, index=True)
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    hospital_id = Column(UUID(as_uuid=False), ForeignKey("hospitals.id"), nullable=False, index=True)
     
     promotion_tier = Column(SQLEnum(PromotionTier), nullable=False)
     amount_paid = Column(Float, nullable=False)

@@ -68,9 +68,12 @@ class UserVerificationAdapter:
             }
     
     def _mock_verify(self, id_number: str, full_name: str) -> Dict[str, Any]:
-        """Mock verification for development"""
-        # Mock logic: valid SA ID format
-        if len(id_number) == 13 and id_number.isdigit():
+        """Mock verification for development - optimized"""
+        id_clean = id_number.strip().upper()
+        # SA ID: 13 digits | Passport: 6-9 alphanumeric
+        is_valid = (len(id_clean) == 13 and id_clean.isdigit()) or (6 <= len(id_clean) <= 9 and id_clean.isalnum())
+        
+        if is_valid:
             return {
                 "verified": True,
                 "status": "verified",
@@ -79,13 +82,12 @@ class UserVerificationAdapter:
                 "verified_at": datetime.utcnow().isoformat(),
                 "message": "User verified (mock mode)"
             }
-        else:
-            return {
-                "verified": False,
-                "status": "pending",
-                "provider": "mock",
-                "message": "Invalid ID format (mock mode)"
-            }
+        return {
+            "verified": False,
+            "status": "pending",
+            "provider": "mock",
+            "message": "Invalid ID format (mock mode)"
+        }
     
     def _smile_identity_verify(
         self,

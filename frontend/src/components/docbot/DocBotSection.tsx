@@ -25,7 +25,7 @@ const DocBotSection: React.FC = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Not sure which doctor you need?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+            <p className="text-xl text-gray-700 max-w-2xl mx-auto mb-8">
               Ask <span className="font-semibold text-primary-500">DocBot</span> about your symptoms 
               to find the right specialist!
             </p>
@@ -46,7 +46,7 @@ const DocBotSection: React.FC = () => {
                   <ChatBubbleLeftRightIcon className="w-6 h-6 text-primary-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">AI-Powered Recommendations</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-700">
                   DocBot analyzes your symptoms and suggests the most appropriate type of doctor for your needs.
                 </p>
               </CardContent>
@@ -58,7 +58,7 @@ const DocBotSection: React.FC = () => {
                   <UserGroupIcon className="w-6 h-6 text-secondary-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Find Verified Specialists</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-700">
                   Get connected to verified doctors and specialists in your area with just a few clicks.
                 </p>
               </CardContent>
@@ -70,7 +70,7 @@ const DocBotSection: React.FC = () => {
                   <ClockIcon className="w-6 h-6 text-accent-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Booking</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-700">
                   Book appointments directly with recommended doctors through our secure platform.
                 </p>
               </CardContent>
@@ -80,7 +80,7 @@ const DocBotSection: React.FC = () => {
           <div className="mt-12 text-center">
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 max-w-2xl mx-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">How DocBot Works</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700 font-medium">
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
                   <span>Describe your symptoms</span>
@@ -98,7 +98,7 @@ const DocBotSection: React.FC = () => {
           </div>
 
           <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500 max-w-3xl mx-auto">
+            <p className="text-sm text-gray-700 max-w-3xl mx-auto">
               <strong>Important:</strong> DocBot provides AI-powered recommendations only and cannot replace 
               professional medical advice. Always consult a licensed doctor for proper diagnosis and treatment.
             </p>
